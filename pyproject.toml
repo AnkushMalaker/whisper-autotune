@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "whisper-asr"
+version = "0.1.0"
+description = ""
+authors = ["Ankush Malaker <43288948+AnkushMalaker@users.noreply.github.com>"]
+readme = "README.md"
+packages = [{include = "whisper_asr"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+whisper-jax = {git = "https://github.com/sanchit-gandhi/whisper-jax.git"}
+fsspec = "^2023.6.0"
+youtube-dl = {git = "https://github.com/ytdl-org/youtube-dl"}
+pydub = "^0.25.1"
+
+[tool.poetry.scripts]
+whisper-asr = "whisper_asr.run:infer_file"
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.3.0"
+mypy = "^1.4.0"
+isort = "^5.12.0"
+
+
+
+[[tool.poetry.source]]
+name = "jax_cuda"
+url = "https://storage.googleapis.com/jax-releases/jax_cuda_releases.html"
+priority = "explicit"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

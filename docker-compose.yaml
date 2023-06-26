@@ -1,0 +1,33 @@
+version: '3.3'
+
+services:
+  development:
+    build: .
+    container_name: whisper-asr-development
+    ports:
+      - 8081:85
+    ipc: host
+    environment:
+      - DATA_DIR=/root/whisper-data
+    volumes:
+      - .:/opt/code
+      - $DATA_DIR:/root/whisper-data
+      - $HOME/.cache:/root/.cache
+      - $HOME/.netrc:/root/.netrc:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    command: sh -c "tail -f /dev/null"
+
+volumes:
+  ml-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_DIR:?DATA_DIR environment variable not set}
