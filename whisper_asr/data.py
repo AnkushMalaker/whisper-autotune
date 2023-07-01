@@ -3,15 +3,127 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
+import torch
+import torchaudio
 import youtube_dl
+from datasets import Dataset
 from pydub import AudioSegment
+from transformers.models.whisper import (
+    WhisperFeatureExtractor,
+    WhisperProcessor,
+    WhisperTokenizer,
+)
 from youtube_dl.utils import DownloadError
 
-from whisper_asr.datatypes import PathLike
+from whisper_asr.datatypes import AudioFileCaptionPair, PathLike, TimeStampCaptionPair
 
 logger = logging.getLogger(__name__)
+
+
+def prepare_sample(batch, feature_extractor, tokenizer, resampling_rate=16000):
+    audio = batch["audio"]
+    audio["array"] = torchaudio.functional.resample(
+        waveform=torch.tensor(audio["array"]),
+        orig_freq=audio["sampling_rate"],
+        new_freq=resampling_rate,
+    )
+    audio["sampling_rate"] = resampling_rate
+    batch["input_features"] = feature_extractor(
+        audio["array"], sampling_rate=audio["sampling_rate"]
+    )
+    batch["labels"] = tokenizer(batch["sentence"]).input_ids
+
+    return batch
+
+
+def prepare_data(
+    audio_caption_pairs_list: List[AudioFileCaptionPair],
+    feature_extractor: WhisperFeatureExtractor,
+    tokenizer: WhisperTokenizer,
+    target_sampling_rate: int = 16000,
+):
+    """
+    The data is in the form of audio-caption pairs.
+    {'audio': {'path': '/home/sanchit_huggingface_co/.cache/huggingface/datasets/downloads/extracted/607848c7e74a89a3b5225c0fa5ffb9470e39b7f11112db614962076a847f3abf/cv-corpus-11.0-2022-09-21/hi/clips/common_voice_hi_25998259.mp3',
+            'array': array([0.0000000e+00, 0.0000000e+00, 0.0000000e+00, ..., 9.6724887e-07,
+        1.5334779e-06, 1.0415988e-06], dtype=float32),
+            'sampling_rate': 48000},
+    'sentence': 'खीर की मिठास पर गरमाई बिहार की सियासत, कुशवाहा ने दी सफाई'}
+    """
+    data_list = []
+
+    i = 0
+    for audio_caption_pair in audio_caption_pairs_list:
+        audio_waveform: torch.Tensor
+        audio_waveform, sample_rate = torchaudio.load(  # type: ignore
+            audio_caption_pair.audio_file_path
+        )
+        feature_dict = {
+            "audio": {
+                "path": audio_caption_pair.audio_file_path,
+                "array": audio_waveform.mean(0),
+                "sampling_rate": sample_rate,
+            },
+            "sentence": audio_caption_pair.caption,
+        }
+        data_list.append(feature_dict)
+        i += 1
+        if i == 50:
+            break
+    audio_dataset = Dataset.from_list(data_list)
+    # audio_dataset = audio_dataset.cast_column(
+    #     "audio", Audio(sampling_rate=target_sampling_rate)
+    # )
+    # audio_dataset = audio_dataset.map(
+
+    audio_dataset = audio_dataset.map(
+        prepare_sample,
+        fn_kwargs={
+            "feature_extractor": feature_extractor,
+            "tokenizer": tokenizer,
+            "resampling_rate": target_sampling_rate,
+        },
+        num_proc=1,
+    )
+    return audio_dataset
+
+
+@dataclass
+class DataCollatorSpeechSeq2SeqWithPadding:
+    processor: Any
+
+    def __call__(
+        self, features: List[Dict[str, Union[List[int], torch.Tensor]]]
+    ) -> Dict[str, torch.Tensor]:
+        # split inputs and labels since they have to be of different lengths and need different padding methods
+        # first treat the audio inputs by simply returning torch tensors
+        input_features = [
+            {"input_features": feature["input_features"]} for feature in features
+        ]
+        batch = self.processor.feature_extractor.pad(
+            input_features, return_tensors="pt"
+        )
+
+        # get the tokenized label sequences
+        label_features = [{"input_ids": feature["labels"]} for feature in features]
+        # pad the labels to max length
+        labels_batch = self.processor.tokenizer.pad(label_features, return_tensors="pt")
+
+        # replace padding with -100 to ignore loss correctly
+        labels = labels_batch["input_ids"].masked_fill(
+            labels_batch.attention_mask.ne(1), -100
+        )
+
+        # if bos token is appended in previous tokenization step,
+        # cut bos token here as it's append later anyways
+        if (labels[:, 0] == self.processor.tokenizer.bos_token_id).all().cpu().item():
+            labels = labels[:, 1:]
+
+        batch["labels"] = labels
+
+        return batch
 
 
 def my_hook(d):
@@ -90,25 +202,6 @@ def download_data(video_urls: Optional[List[str]] = None) -> Dict[str, Dict[str,
         json.dump(data_dict, f)
 
     return data_dict
-
-
-@dataclass
-class AudioFileCaptionPair:
-    audio_file: PathLike
-    caption: str
-
-    def to_dict(self):
-        return {"audio_file": str(self.audio_file), "caption": self.caption}
-
-    def clean(self):
-        self.caption = re.sub(r"[^a-zA-Z0-9 ]+", "", self.caption.lower())
-
-
-@dataclass
-class TimeStampCaptionPair:
-    start_time: float
-    end_time: float
-    caption: str
 
 
 def convert_timestamp_to_seconds(timestamp: str) -> float:

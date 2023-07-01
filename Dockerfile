@@ -3,8 +3,9 @@ ARG PYSETUP_PATH="/opt/code"
 ARG VENV_PATH="/opt/code/.venv"
 
 # same as pytorch:latest
-FROM pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime as development 
-# FROM pytorch/pytorch:latest as development
+# FROM pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime as development # FROM pytorch/pytorch:latest as development
+FROM nvidia/cuda:11.7.1-cudnn8-runtime-ubuntu22.04 as development
+# FROM nvidia/cuda:11.7.1-cudnn8-devel-ubuntu22.04
 
 ARG POETRY_HOME
 ARG PYSETUP_PATH
