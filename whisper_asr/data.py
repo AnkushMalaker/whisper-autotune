@@ -94,12 +94,8 @@ class DataCollatorSpeechSeq2SeqWithPadding:
     ) -> Dict[str, torch.Tensor]:
         # split inputs and labels since they have to be of different lengths and need different padding methods
         # first treat the audio inputs by simply returning torch tensors
-        input_features = [
-            {"input_features": feature["input_features"]} for feature in features
-        ]
-        batch = self.processor.feature_extractor.pad(
-            input_features, return_tensors="pt"
-        )
+        input_features = [{"input_features": feature["input_features"]} for feature in features]
+        batch = self.processor.feature_extractor.pad(input_features, return_tensors="pt")
 
         # get the tokenized label sequences
         label_features = [{"input_ids": feature["labels"]} for feature in features]
@@ -107,9 +103,7 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         labels_batch = self.processor.tokenizer.pad(label_features, return_tensors="pt")
 
         # replace padding with -100 to ignore loss correctly
-        labels = labels_batch["input_ids"].masked_fill(
-            labels_batch.attention_mask.ne(1), -100
-        )
+        labels = labels_batch["input_ids"].masked_fill(labels_batch.attention_mask.ne(1), -100)
 
         # if bos token is appended in previous tokenization step,
         # cut bos token here as it's append later anyways
@@ -128,15 +122,37 @@ def my_hook(d):
 
 def download_data(video_urls: Optional[List[str]] = None) -> Dict[str, Dict[str, str]]:
     if video_urls is None:
-        video_urls = [
-            "https://www.youtube.com/watch?v=f4k6xRfmz2A",
-            "https://www.youtube.com/watch?v=mPF9f-PLDPc",
-            "https://www.youtube.com/watch?v=D24ueW8G0-w",
-            "https://www.youtube.com/watch?v=dXqfEFX1veY",
-            "https://www.youtube.com/watch?v=dc7CIkZcWYE",
-            "https://www.youtube.com/watch?v=1vpepaQ-VQQ",
-            "https://www.youtube.com/watch?v=nkh9VGCY8as",
-        ]
+        video_urls = list(
+            set(
+                [
+                    "https://www.youtube.com/watch?v=f4k6xRfmz2A",
+                    "https://www.youtube.com/watch?v=mPF9f-PLDPc",
+                    "https://www.youtube.com/watch?v=D24ueW8G0-w",
+                    "https://www.youtube.com/watch?v=dXqfEFX1veY",
+                    "https://www.youtube.com/watch?v=dc7CIkZcWYE",
+                    "https://www.youtube.com/watch?v=1vpepaQ-VQQ",
+                    "https://www.youtube.com/watch?v=nkh9VGCY8as",
+                    "https://www.youtube.com/watch?v=1ugJ1BJx0HE",
+                    "https://www.youtube.com/watch?v=9CunwUs08og",
+                    "https://www.youtube.com/watch?v=UeCdBVHYa_8",
+                    "https://www.youtube.com/watch?v=IawfrWLDN4U",
+                    "https://www.youtube.com/watch?v=QOhLlvNlI20",
+                    "https://www.youtube.com/watch?v=Z07ZNsWGC80",
+                    "https://www.youtube.com/watch?v=ykDuoq-MpHg",
+                    "https://www.youtube.com/watch?v=RYMnIGxxqU0",
+                    "https://www.youtube.com/watch?v=J2UaipfsR7Q",
+                    "https://www.youtube.com/watch?v=TzntUW34bv8",
+                    "https://www.youtube.com/watch?v=FPF7Z7TLdsk",
+                    "https://www.youtube.com/watch?v=auObtDOftAI",
+                    "https://www.youtube.com/watch?v=-PD0FZt9-VU",
+                    "https://www.youtube.com/watch?v=GgK1o5ytXr8",
+                    "https://www.youtube.com/watch?v=jgzI-N_U2hs",
+                    "https://www.youtube.com/watch?v=kuTTAuUorsI",
+                    "https://www.youtube.com/watch?v=S0zpKHvEKXc",
+                    "https://www.youtube.com/watch?v=RFzirpvTiOo",
+                ]
+            )
+        )
 
     download_dir = Path("Data")
     ydl_opts = {
@@ -175,7 +191,8 @@ def download_data(video_urls: Optional[List[str]] = None) -> Dict[str, Dict[str,
             if not x.is_dir() and (x.suffix == ".vtt" or x.suffix == ".wav")
         ]
     )
-    for i in range(0, len(pairs), 2):
+    i = 0
+    while i < len(pairs):
         file1 = pairs[i]
         if file1.suffix == ".vtt":
             subtitle_file = file1
@@ -183,6 +200,10 @@ def download_data(video_urls: Optional[List[str]] = None) -> Dict[str, Dict[str,
         else:
             audio_file = file1
             subtitle_file = pairs[i + 1]
+        if audio_file.name[0:15] != subtitle_file.name[0:15]:
+            print(f"Skipping {audio_file.name} as it doesn't match {subtitle_file.name}")
+            i += 1
+            continue
         audio_file = audio_file.rename(audio_dir / audio_file.name)
         subtitle_file = subtitle_file.rename(subtitle_dir / subtitle_file.name)
         audio_name = audio_file.stem
@@ -192,6 +213,7 @@ def download_data(video_urls: Optional[List[str]] = None) -> Dict[str, Dict[str,
             "audio": str(audio_file.resolve()),
             "subtitle": str(subtitle_file.resolve()),
         }
+        i += 2
 
     with open(json_file, "w") as f:
         json.dump(data_dict, f)
@@ -252,9 +274,7 @@ def preprocess_data(
         time_stamp_caption_pairs = parse_vtt(subtitle_file)
 
         audio = AudioSegment.from_wav(audio_file)
-        list_of_timestamps = [
-            (x.start_time, x.end_time) for x in time_stamp_caption_pairs
-        ]
+        list_of_timestamps = [(x.start_time, x.end_time) for x in time_stamp_caption_pairs]
 
         for idx, t in enumerate(list_of_timestamps):
             # break loop if at last element of list
@@ -271,7 +291,10 @@ def preprocess_data(
             segment.export(output_file, format="wav")
 
             audio_caption_pairs.append(
-                AudioFileCaptionPair(output_file, time_stamp_caption_pairs[idx].caption)
+                AudioFileCaptionPair(
+                    output_file,
+                    preprocess_caption(time_stamp_caption_pairs[idx].caption),
+                )
             )
 
         with open(output_json, "w") as f:
@@ -280,7 +303,9 @@ def preprocess_data(
 
 def preprocess_caption(caption: str) -> str:
     new_string = re.sub(r"\([^)]*\)", "", caption)  # remove text within parentheses
+    new_string = new_string.lower().replace("-", "").strip()
     # TODO: Remove hyphens
+
     # TODO: Add hyphens etc from language model
     return new_string
 
