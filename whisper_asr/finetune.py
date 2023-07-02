@@ -59,12 +59,13 @@ def main():
         return {"wer": wer}
 
     training_args = Seq2SeqTrainingArguments(
-        output_dir="./whisper-small-hi",  # change to a repo name of your choice
-        per_device_train_batch_size=16,
-        gradient_accumulation_steps=1,  # increase by 2x for every 2x decrease in batch size
+        output_dir="./training-checkpoints/whisper-small-hi",  # change to a repo name of your choice
+        per_device_train_batch_size=8,
+        gradient_accumulation_steps=2,  # increase by 2x for every 2x decrease in batch size
         learning_rate=1e-5,
         warmup_steps=500,
         max_steps=4000,
+        dataloader_num_workers=8,
         gradient_checkpointing=True,
         fp16=True,
         evaluation_strategy="steps",

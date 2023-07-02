@@ -3,7 +3,7 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import torch
 import torchaudio
@@ -15,7 +15,6 @@ from transformers.models.whisper import (
     WhisperProcessor,
     WhisperTokenizer,
 )
-from youtube_dl.utils import DownloadError
 
 from whisper_asr.datatypes import AudioFileCaptionPair, PathLike, TimeStampCaptionPair
 
@@ -32,7 +31,7 @@ def prepare_sample(batch, feature_extractor, tokenizer, resampling_rate=16000):
     audio["sampling_rate"] = resampling_rate
     batch["input_features"] = feature_extractor(
         audio["array"], sampling_rate=audio["sampling_rate"]
-    )
+    )["input_features"][0]
     batch["labels"] = tokenizer(batch["sentence"]).input_ids
 
     return batch
@@ -54,7 +53,6 @@ def prepare_data(
     """
     data_list = []
 
-    i = 0
     for audio_caption_pair in audio_caption_pairs_list:
         audio_waveform: torch.Tensor
         audio_waveform, sample_rate = torchaudio.load(  # type: ignore
@@ -69,9 +67,6 @@ def prepare_data(
             "sentence": audio_caption_pair.caption,
         }
         data_list.append(feature_dict)
-        i += 1
-        if i == 50:
-            break
     audio_dataset = Dataset.from_list(data_list)
     # audio_dataset = audio_dataset.cast_column(
     #     "audio", Audio(sampling_rate=target_sampling_rate)
@@ -92,7 +87,7 @@ def prepare_data(
 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
-    processor: Any
+    processor: WhisperProcessor
 
     def __call__(
         self, features: List[Dict[str, Union[List[int], torch.Tensor]]]
