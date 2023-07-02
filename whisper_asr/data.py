@@ -219,6 +219,7 @@ def parse_vtt(vtt_file: PathLike) -> List[TimeStampCaptionPair]:
     time_stamp_caption_pairs = []
     while i < len(lines):
         start_time, end_time = lines[i].split("-->")
+        i += 1
 
         start_time = convert_timestamp_to_seconds(start_time.strip())
         end_time = convert_timestamp_to_seconds(end_time.strip())
@@ -279,7 +280,8 @@ def preprocess_data(
 
 def preprocess_caption(caption: str) -> str:
     new_string = re.sub(r"\([^)]*\)", "", caption)  # remove text within parentheses
-
+    # TODO: Remove hyphens
+    # TODO: Add hyphens etc from language model
     return new_string
 
 
