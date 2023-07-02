@@ -42,6 +42,8 @@ def prepare_data(
     feature_extractor: WhisperFeatureExtractor,
     tokenizer: WhisperTokenizer,
     target_sampling_rate: int = 16000,
+    dataset_path: Optional[PathLike] = None,
+    force_recompute: bool = False,
 ):
     """
     The data is in the form of audio-caption pairs.
@@ -51,6 +53,10 @@ def prepare_data(
             'sampling_rate': 48000},
     'sentence': 'खीर की मिठास पर गरमाई बिहार की सियासत, कुशवाहा ने दी सफाई'}
     """
+    if dataset_path and Path(dataset_path).exists() and not force_recompute:
+        audio_dataset = Dataset.load_from_disk(str(dataset_path))
+        return audio_dataset
+
     data_list = []
 
     for audio_caption_pair in audio_caption_pairs_list:
@@ -82,6 +88,9 @@ def prepare_data(
         },
         num_proc=1,
     )
+    if dataset_path is not None:
+        audio_dataset.save_to_disk(str(dataset_path))
+
     return audio_dataset
 
 
@@ -303,10 +312,11 @@ def preprocess_data(
 
 def preprocess_caption(caption: str) -> str:
     new_string = re.sub(r"\([^)]*\)", "", caption)  # remove text within parentheses
+    new_string = re.sub(r"\[[^)]*\]", "", new_string)  # remove text within square brackets
     new_string = new_string.lower().replace("-", "").strip()
-    # TODO: Remove hyphens
-
     # TODO: Add hyphens etc from language model
+    if new_string == "":
+        return "<blank>"
     return new_string
 
 

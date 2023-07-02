@@ -1,10 +1,6 @@
 import json
-from typing import Dict, List
 
 import evaluate
-import torch
-import torchaudio
-from datasets import Dataset
 from transformers.models.whisper import (
     WhisperFeatureExtractor,
     WhisperForConditionalGeneration,
@@ -21,22 +17,22 @@ from whisper_asr.datatypes import AudioFileCaptionPair
 def main():
     feature_extractor = WhisperFeatureExtractor.from_pretrained("openai/whisper-small")
 
-    tokenizer = WhisperTokenizer.from_pretrained(
-        "openai/whisper-small", task="transcribe"
-    )
+    tokenizer = WhisperTokenizer.from_pretrained("openai/whisper-small", task="transcribe")
 
     with open("Data/audio_caption_pairs.json", "r") as f:
         audio_caption_pairs = [AudioFileCaptionPair.from_dict(x) for x in json.load(f)]
 
-    processor = WhisperProcessor.from_pretrained(
-        "openai/whisper-small", task="transcribe"
-    )
+    processor = WhisperProcessor.from_pretrained("openai/whisper-small", task="transcribe")
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
 
     train_pairs = audio_caption_pairs[: int(len(audio_caption_pairs) * 0.8)]
     val_pairs = audio_caption_pairs[int(len(audio_caption_pairs) * 0.8) :]
-    train_prepared_dataset = prepare_data(train_pairs, feature_extractor, tokenizer)
-    val_prepared_dataset = prepare_data(val_pairs, feature_extractor, tokenizer)
+    train_prepared_dataset = prepare_data(
+        train_pairs, feature_extractor, tokenizer, dataset_path="Data/train_dataset"
+    )
+    val_prepared_dataset = prepare_data(
+        val_pairs, feature_extractor, tokenizer, dataset_path="Data/val_dataset"
+    )
     metric = evaluate.load("wer")
 
     model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-small")
@@ -72,8 +68,9 @@ def main():
         per_device_eval_batch_size=8,
         predict_with_generate=True,
         generation_max_length=225,
-        save_steps=1000,
-        eval_steps=1000,
+        save_steps=500,
+        eval_steps=500,
+        # eval_steps=1000,
         logging_steps=25,
         report_to=["wandb"],
         load_best_model_at_end=True,
