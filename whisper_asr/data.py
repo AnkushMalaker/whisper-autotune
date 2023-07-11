@@ -166,7 +166,7 @@ def download_data(video_urls: Optional[List[str]] = None) -> Dict[str, Dict[str,
             )
         )
 
-    download_dir = Path("Data")
+    download_dir = DATA_DIR
     ydl_opts = {
         "format": "bestaudio/best",
         "postprocessors": [
@@ -214,6 +214,10 @@ def download_data(video_urls: Optional[List[str]] = None) -> Dict[str, Dict[str,
             subtitle_file = pairs[i + 1]
         if audio_file.name[0:15] != subtitle_file.name[0:15]:
             print(f"Skipping {audio_file.name} as it doesn't match {subtitle_file.name}")
+            if audio_file.exists():
+                audio_file.unlink()
+            else:
+                subtitle_file.unlink()
             i += 1
             continue
         audio_file = audio_file.rename(audio_dir / audio_file.name)

@@ -28,7 +28,8 @@ RUN apt-get update
 RUN apt-get install --no-install-recommends -y \
         curl \
         build-essential
-RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install git ffmpeg libsm6 libxext6 vim -y
+RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y \
+         git ffmpeg libsm6 libxext6 vim tmux zip unzip
 
 RUN curl -sSL https://install.python-poetry.org | python3 -
 

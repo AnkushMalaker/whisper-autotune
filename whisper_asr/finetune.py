@@ -23,7 +23,7 @@ def main():
 
     tokenizer = WhisperTokenizer.from_pretrained("openai/whisper-small", task="transcribe")
 
-    with open("Data/audio_caption_pairs.json", "r") as f:
+    with open(DATA_DIR / "audio_caption_pairs.json", "r") as f:
         audio_caption_pairs = [AudioFileCaptionPair.from_dict(x) for x in json.load(f)]
 
     processor = WhisperProcessor.from_pretrained("openai/whisper-small", task="transcribe")
