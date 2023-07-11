@@ -2,9 +2,7 @@ ARG POETRY_HOME="/opt/poetry"
 ARG PYSETUP_PATH="/opt/code"
 ARG VENV_PATH="/opt/code/.venv"
 
-# same as pytorch:latest
-FROM pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime as development 
-# FROM pytorch/pytorch:latest as development
+FROM pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime as builder
 
 ARG POETRY_HOME
 ARG PYSETUP_PATH
@@ -34,6 +32,8 @@ RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install git ffmpeg libsm6 
 
 RUN curl -sSL https://install.python-poetry.org | python3 -
 
+FROM builder as development
+
 WORKDIR $PYSETUP_PATH
 COPY ./poetry.lock ./pyproject.toml ./README.md ./
 COPY ./whisper_asr/ ./whisper_asr
@@ -43,3 +43,4 @@ COPY ./install_non_poetry.sh .
 RUN sh ./install_non_poetry.sh
 
 ENV JAX_PLATFORM_NAME cuda
+ENV DATA_DIR /root/whisper-data
