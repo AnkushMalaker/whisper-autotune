@@ -1,2 +1,4 @@
 Data/**
 **/__pycache__/**
+wandb/**
+training-checkpoints/**

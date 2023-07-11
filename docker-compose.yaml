@@ -2,7 +2,9 @@ version: '3.3'
 
 services:
   development:
-    build: .
+    build:
+      context: .
+      target: development
     container_name: whisper-asr-development
     ports:
       - 8081:85
