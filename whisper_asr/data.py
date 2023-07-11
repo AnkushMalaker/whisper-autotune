@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,6 +20,8 @@ from transformers.models.whisper import (
 from whisper_asr.datatypes import AudioFileCaptionPair, PathLike, TimeStampCaptionPair
 
 logger = logging.getLogger(__name__)
+
+DATA_DIR = Path(os.environ.get("DATA_DIR", "/root/whisper-data"))
 
 
 def prepare_sample(batch, feature_extractor, tokenizer, resampling_rate=16000):
@@ -316,19 +319,19 @@ def preprocess_caption(caption: str) -> str:
     new_string = new_string.lower().replace("-", "").strip()
     # TODO: Add hyphens etc from language model
     if new_string == "":
-        return "<blank>"
+        return " "
     return new_string
 
 
 if __name__ == "__main__":
-    if Path("Data/audio_subtitle_pairs.json").exists():
-        with open("Data/audio_subtitle_pairs.json", "r") as f:
+    if (DATA_DIR / "audio_subtitle_pairs.json").exists():
+        with open(DATA_DIR / "audio_subtitle_pairs.json", "r") as f:
             data_dict = json.load(f)
     else:
         data_dict = download_data()
 
     preprocess_data(
         data_dict=data_dict,
-        output_dir="Data/preprocessed",
-        output_json="Data/audio_caption_pairs.json",
+        output_dir=DATA_DIR / "preprocessed",
+        output_json=DATA_DIR / "audio_caption_pairs.json",
     )

@@ -38,7 +38,7 @@ WORKDIR $PYSETUP_PATH
 COPY ./poetry.lock ./pyproject.toml ./README.md ./
 COPY ./whisper_asr/ ./whisper_asr
 
-RUN poetry install
+RUN poetry install && rm -rf /root/.cache/pypoetry /root/.cache/pip
 COPY ./install_non_poetry.sh .
 RUN sh ./install_non_poetry.sh
 

@@ -1,4 +1,6 @@
 import json
+import os
+from pathlib import Path
 
 import evaluate
 from transformers.models.whisper import (
@@ -12,6 +14,8 @@ from transformers.training_args_seq2seq import Seq2SeqTrainingArguments
 
 from whisper_asr.data import DataCollatorSpeechSeq2SeqWithPadding, prepare_data
 from whisper_asr.datatypes import AudioFileCaptionPair
+
+DATA_DIR = Path(os.environ.get("DATA_DIR", "/root/whisper-data"))
 
 
 def main():
@@ -28,10 +32,10 @@ def main():
     train_pairs = audio_caption_pairs[: int(len(audio_caption_pairs) * 0.8)]
     val_pairs = audio_caption_pairs[int(len(audio_caption_pairs) * 0.8) :]
     train_prepared_dataset = prepare_data(
-        train_pairs, feature_extractor, tokenizer, dataset_path="Data/train_dataset"
+        train_pairs, feature_extractor, tokenizer, dataset_path=DATA_DIR / "train_dataset"
     )
     val_prepared_dataset = prepare_data(
-        val_pairs, feature_extractor, tokenizer, dataset_path="Data/val_dataset"
+        val_pairs, feature_extractor, tokenizer, dataset_path=DATA_DIR / "val_dataset"
     )
     metric = evaluate.load("wer")
 
