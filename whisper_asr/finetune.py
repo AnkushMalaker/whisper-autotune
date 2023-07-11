@@ -19,14 +19,14 @@ DATA_DIR = Path(os.environ.get("DATA_DIR", "/root/whisper-data"))
 
 
 def main():
-    feature_extractor = WhisperFeatureExtractor.from_pretrained("openai/whisper-small")
+    feature_extractor = WhisperFeatureExtractor.from_pretrained("openai/whisper-medium")
 
-    tokenizer = WhisperTokenizer.from_pretrained("openai/whisper-small", task="transcribe")
+    tokenizer = WhisperTokenizer.from_pretrained("openai/whisper-medium", task="transcribe")
 
     with open(DATA_DIR / "audio_caption_pairs.json", "r") as f:
         audio_caption_pairs = [AudioFileCaptionPair.from_dict(x) for x in json.load(f)]
 
-    processor = WhisperProcessor.from_pretrained("openai/whisper-small", task="transcribe")
+    processor = WhisperProcessor.from_pretrained("openai/whisper-medium", task="transcribe")
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
 
     train_pairs = audio_caption_pairs[: int(len(audio_caption_pairs) * 0.8)]
@@ -39,7 +39,7 @@ def main():
     )
     metric = evaluate.load("wer")
 
-    model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-small")
+    model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-medium")
     model.config.forced_decoder_ids = None  # type: ignore
     model.config.suppress_tokens = []  # type: ignore
 
@@ -59,13 +59,13 @@ def main():
         return {"wer": wer}
 
     training_args = Seq2SeqTrainingArguments(
-        output_dir="./training-checkpoints/whisper-small-hi",  # change to a repo name of your choice
+        output_dir="./training-checkpoints/whisper-medium",  # change to a repo name of your choice
         per_device_train_batch_size=8,
         gradient_accumulation_steps=2,  # increase by 2x for every 2x decrease in batch size
         learning_rate=1e-5,
         warmup_steps=500,
         max_steps=4000,
-        dataloader_num_workers=8,
+        dataloader_num_workers=7,
         gradient_checkpointing=True,
         fp16=True,
         evaluation_strategy="steps",
@@ -92,6 +92,7 @@ def main():
         compute_metrics=compute_metrics,
         tokenizer=processor.feature_extractor,
     )
+    trainer.evaluate(eval_dataset=val_prepared_dataset)
     trainer.train()
 
 
