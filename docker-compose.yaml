@@ -4,6 +4,7 @@ services:
   development:
     build: .
     container_name: whisper-asr-development
+    target: development
     ports:
       - 8081:85
     ipc: host
