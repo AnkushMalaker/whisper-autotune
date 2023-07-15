@@ -5,9 +5,10 @@ services:
     build:
       context: .
       target: development
+      dockerfile: Dockerfile
     container_name: whisper-asr-development
     ports:
-      - 8081:85
+      - 8081:80
     ipc: host
     environment:
       - DATA_DIR=/root/whisper-data
@@ -16,6 +17,7 @@ services:
       - $DATA_DIR:/root/whisper-data
       - $HOME/.cache:/root/.cache
       - $HOME/.netrc:/root/.netrc:ro
+      - $HOME/.gitconfig:/etc/gitconfig:ro
     deploy:
       resources:
         reservations:
@@ -25,7 +27,6 @@ services:
               capabilities: [gpu]
 
     command: sh -c "tail -f /dev/null"
-
 volumes:
   ml-data:
     driver: local
