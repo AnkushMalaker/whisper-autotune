@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Union
@@ -220,8 +221,8 @@ def download_data(video_urls: Optional[List[str]] = None) -> Dict[str, Dict[str,
                 subtitle_file.unlink()
             i += 1
             continue
-        audio_file = audio_file.rename(audio_dir / audio_file.name)
-        subtitle_file = subtitle_file.rename(subtitle_dir / subtitle_file.name)
+        audio_file = shutil.move(audio_file, audio_dir / audio_file.name)
+        subtitle_file = shutil.move(subtitle_file, subtitle_dir / subtitle_file.name)
         audio_name = audio_file.stem
         subtitle_name = subtitle_file.stem
         # assert audio_name == subtitle_name
@@ -306,6 +307,9 @@ def preprocess_data(
             output_file = output_dir / f"{data_name}_{idx}.wav"
             segment.export(output_file, format="wav")
 
+            txt = preprocess_caption(time_stamp_caption_pairs[idx].caption)
+            if txt == "" or txt == " ":
+                continue
             audio_caption_pairs.append(
                 AudioFileCaptionPair(
                     output_file,
