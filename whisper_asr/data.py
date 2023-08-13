@@ -11,9 +11,11 @@ import torch
 import torchaudio
 import youtube_dl
 from datasets import Dataset
+from datasets.arrow_dataset import Dataset as ArrowDataset
 from pydub import AudioSegment
 from transformers.models.whisper import (
     WhisperFeatureExtractor,
+    WhisperForConditionalGeneration,
     WhisperProcessor,
     WhisperTokenizer,
 )
@@ -48,7 +50,7 @@ def prepare_data(
     target_sampling_rate: int = 16000,
     dataset_path: Optional[PathLike] = None,
     force_recompute: bool = False,
-):
+) -> ArrowDataset:
     """
     The data is in the form of audio-caption pairs.
     {'audio': {'path': '/home/sanchit_huggingface_co/.cache/huggingface/datasets/downloads/extracted/607848c7e74a89a3b5225c0fa5ffb9470e39b7f11112db614962076a847f3abf/cv-corpus-11.0-2022-09-21/hi/clips/common_voice_hi_25998259.mp3',
@@ -103,28 +105,44 @@ class DataCollatorSpeechSeq2SeqWithPadding:
     processor: WhisperProcessor
 
     def __call__(
-        self, features: List[Dict[str, Union[List[int], torch.Tensor]]]
+        self, features_batch: List[Dict[str, Union[List[int], torch.Tensor]]]
     ) -> Dict[str, torch.Tensor]:
         # split inputs and labels since they have to be of different lengths and need different padding methods
         # first treat the audio inputs by simply returning torch tensors
-        input_features = [{"input_features": feature["input_features"]} for feature in features]
-        batch = self.processor.feature_extractor.pad(input_features, return_tensors="pt")
+        input_features = [
+            {"input_features": feature["input_features"]} for feature in features_batch
+        ]
+        batch = self.processor.feature_extractor.pad(input_features, return_tensors="pt")  # type: ignore
 
         # get the tokenized label sequences
-        label_features = [{"input_ids": feature["labels"]} for feature in features]
+        label_features = [{"input_ids": feature["labels"]} for feature in features_batch]
         # pad the labels to max length
-        labels_batch = self.processor.tokenizer.pad(label_features, return_tensors="pt")
+        labels_batch = self.processor.tokenizer.pad(label_features, return_tensors="pt")  # type: ignore
 
         # replace padding with -100 to ignore loss correctly
+        # __import__("ipdb").set_trace()
         labels = labels_batch["input_ids"].masked_fill(labels_batch.attention_mask.ne(1), -100)
+        # labels = labels_batch["input_ids"]
 
         # if bos token is appended in previous tokenization step,
         # cut bos token here as it's append later anyways
-        if (labels[:, 0] == self.processor.tokenizer.bos_token_id).all().cpu().item():
+        if (labels[:, 0] == self.processor.tokenizer.bos_token_id).all().cpu().item():  # type: ignore
             labels = labels[:, 1:]
 
         batch["labels"] = labels
 
+        return batch
+
+
+class DataCollatorWithBatchNumber(DataCollatorSpeechSeq2SeqWithPadding):
+    def __init__(self, processor):
+        self.processor = processor
+        self.batch_number = 0  # Initialize batch number counter
+
+    def __call__(self, features):
+        batch = super().__call__(features)
+        batch["batch_number"] = torch.tensor(self.batch_number)
+        self.batch_number += 1  # Increment batch number for the next batch
         return batch
 
 

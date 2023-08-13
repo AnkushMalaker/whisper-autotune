@@ -24,14 +24,15 @@ ENV POETRY_VERSION=1.5.1
 ENV PATH="$POETRY_HOME/bin:$VENV_PATH/bin:$PATH"
 
 
-RUN apt-get update
-RUN apt-get install --no-install-recommends -y \
+RUN apt-get update && apt-get install --no-install-recommends -y \
         curl \
         build-essential
-RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y \
          git ffmpeg libsm6 libxext6 vim tmux zip unzip
 
 RUN curl -sSL https://install.python-poetry.org | python3 -
+
+####################################################################################
 
 FROM builder as development
 
@@ -40,6 +41,21 @@ COPY ./poetry.lock ./pyproject.toml ./README.md ./
 COPY ./whisper_asr/ ./whisper_asr
 
 RUN poetry install && rm -rf /root/.cache/pypoetry /root/.cache/pip
+COPY ./install_non_poetry.sh .
+RUN sh ./install_non_poetry.sh
+
+ENV JAX_PLATFORM_NAME cuda
+ENV DATA_DIR /root/whisper-data
+
+####################################################################################
+
+FROM builder as inference-server
+
+WORKDIR $PYSETUP_PATH
+COPY ./poetry.lock ./pyproject.toml ./README.md ./
+COPY ./whisper_asr/ ./whisper_asr
+
+RUN poetry install --only jax && rm -rf /root/.cache/pypoetry /root/.cache/pip
 COPY ./install_non_poetry.sh .
 RUN sh ./install_non_poetry.sh
 
